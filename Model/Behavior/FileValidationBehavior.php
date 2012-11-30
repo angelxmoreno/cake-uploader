@@ -71,13 +71,41 @@ class FileValidationBehavior extends ModelBehavior {
 		)
 	);
 
-	/**
-	 * Generated list of validation rules.
+        /**
+         * Generated list of validation rules.
+         *
+         * @access protected
+         * @var array
+         */
+	protected $_validations = array();
+
+        /**
+         * List of PHP upload errors.
+         *
+         * @access protected
+         * @var array
+         */
+        protected $_uploadErrorsMap = array(
+            //0=>'There is no error, the file uploaded with success',
+            1=>'The uploaded file exceeds the upload_max_filesize directive in php.ini',
+            2=>'The uploaded file exceeds the MAX_FILE_SIZE directive that was specified in the HTML form',
+            3=>'The uploaded file was only partially uploaded',
+            4=>'No file was uploaded',
+            6=>'Missing a temporary folder'
+        );
+
+        /**
+	 * Validation rule to injext into each field found in settings
 	 *
 	 * @access protected
 	 * @var array
-	 */
-	protected $_validations = array();
+         */
+        protected $_uploadCheckRule = array(
+            'uploadCheck' => array(
+                'rule' => array('uploadCheck'),
+                'message' => 'An error was found during upload'
+            )
+        );
 
 	/**
 	 * Setup the validation and model settings.
@@ -95,7 +123,7 @@ class FileValidationBehavior extends ModelBehavior {
 		}
 	}
 
-	/**
+        /**
 	 * Validates an image filesize. Default max size is 5 MB.
 	 *
 	 * @access public
@@ -228,6 +256,25 @@ class FileValidationBehavior extends ModelBehavior {
 		return true;
 	}
 
+        /**
+	 * Checks the $_FILES[field][error] array for upload errors
+         * Returns true if the value of $_FILES[field][error] is not a key is $this->_uploadErrorsMap
+         * otherwise it returns the value of $this->_uploadErrorsMap[$_FILES[field][error]]
+	 *
+	 * @access public
+	 * @param Model $model
+	 * @param array $data
+	 * @param array $allowed
+	 * @return mixed
+	 */
+	public function uploadCheck(Model $model, $data, array $allowed = array()) {
+                $data = end($data);
+                if (array_key_exists('error', $data) && array_key_exists($data['error'], $this->_uploadErrorsMap)) {
+                    return $this->_uploadErrorsMap[$data['error']];
+                }
+                return true;
+	}
+
 	/**
 	 * Makes sure a file field is required and not optional.
 	 *
@@ -299,7 +346,7 @@ class FileValidationBehavior extends ModelBehavior {
 
 				if (!empty($validations)) {
 					if (!empty($model->validate[$field])) {
-						$validations = $validations + $model->validate[$field];
+						$validations = $this->_uploadCheckRule + $validations + $model->validate[$field];
 					}
 
 					$this->_validations[$field] = $validations;
